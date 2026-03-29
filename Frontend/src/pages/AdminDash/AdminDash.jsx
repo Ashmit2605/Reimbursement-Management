@@ -213,6 +213,7 @@ function AdminDash() {
 
   const navItems = [
     { label: 'Overview', icon: LayoutDashboard, path: 'overview' },
+    { label: 'Manage', icon: User,           path: 'manage' },
     { label: 'Requests', icon: FileText,         path: 'requests', badge: 12 },
     { label: 'Settings', icon: Settings,          path: 'settings' },
   ]

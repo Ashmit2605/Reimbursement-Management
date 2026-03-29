@@ -31,6 +31,7 @@ function App() {
         <Route path="/admin" element={<AdminDash />}>
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<AdminOverview />} />
+          <Route path="manage" element={<AdminRequests />} />
           <Route path="requests" element={<AdminRequests />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
