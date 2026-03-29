@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     CheckCircle, XCircle, Clock, FileText, TrendingUp,
     ChevronRight, AlertCircle, Plus,
@@ -12,21 +12,6 @@ const C = {
     bg: "#f4f8f9",
 };
 
-const HISTORY = [
-    { id: 101, description: "Team Lunch", date: "4th Oct, 2025", category: "Food", amount: 5000, currency: "INR ₹", status: "Approved", approver: "John M." },
-    { id: 102, description: "Flight to Mumbai", date: "6th Oct, 2025", category: "Travel", amount: 12400, currency: "INR ₹", status: "Rejected", approver: "John M." },
-    { id: 103, description: "Hotel Stay — Taj", date: "7th Oct, 2025", category: "Accommodation", amount: 320, currency: "USD $", status: "Approved", approver: "John M." },
-    { id: 104, description: "Figma Pro Subscription", date: "1st Sep, 2025", category: "Software", amount: 15, currency: "USD $", status: "Approved", approver: "Meera K." },
-    { id: 105, description: "Office Chair", date: "20th Aug, 2025", category: "Equipment", amount: 8900, currency: "INR ₹", status: "Rejected", approver: "Meera K." },
-    { id: 106, description: "Client Dinner", date: "15th Jul, 2025", category: "Food", amount: 4200, currency: "INR ₹", status: "Approved", approver: "John M." },
-];
-
-const REQUESTS = [
-    { id: 1, description: "Restaurant bill", date: "4th Oct, 2025", category: "Food", amount: 5000, currency: "INR ₹", status: "Draft" },
-    { id: 2, description: "Flight tickets", date: "6th Oct, 2025", category: "Travel", amount: 567, currency: "USD $", status: "Submitted" },
-    { id: 3, description: "Hotel stay", date: "7th Oct, 2025", category: "Accommodation", amount: 320, currency: "USD $", status: "Approved" },
-];
-
 const CAT_COLORS = {
     Food: { bg: "#fff7e6", text: "#92610a", border: "#f5d98a" },
     Travel: { bg: "#e8f4fd", text: "#1a5f8a", border: "#9fd0f0" },
@@ -37,16 +22,16 @@ const CAT_COLORS = {
 };
 
 const STATUS_STYLE = {
-    Draft:     { color: "#888",    bg: "rgba(136,136,136,0.1)" },
-    Submitted: { color: "#d4860a", bg: "rgba(212,134,10,0.1)" },
-    Approved:  { color: "#2d7a5a", bg: "rgba(45,122,90,0.1)" },
-    Rejected:  { color: "#b54a4a", bg: "rgba(181,74,74,0.1)" },
+    pending:   { color: "#888",    bg: "rgba(136,136,136,0.1)" },
+    active:    { color: "#d4860a", bg: "rgba(212,134,10,0.1)" },
+    approved:  { color: "#2d7a5a", bg: "rgba(45,122,90,0.1)" },
+    rejected:  { color: "#b54a4a", bg: "rgba(181,74,74,0.1)" },
 };
 
 const sym = (c) => c?.split(" ")[1] || "";
 
 function StatusBadge({ status }) {
-    const s = STATUS_STYLE[status] || STATUS_STYLE.Draft;
+    const s = STATUS_STYLE[status] || STATUS_STYLE.pending;
     return (
         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 600, color: s.color, background: s.bg }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
@@ -56,16 +41,36 @@ function StatusBadge({ status }) {
 }
 
 export default function EmployeeOverview() {
-    const approved = HISTORY.filter(h => h.status === "Approved");
-    const rejected = HISTORY.filter(h => h.status === "Rejected");
-    const approvedTotal = approved.reduce((a, b) => a + b.amount, 0);
-    const approvalRate = Math.round((approved.length / HISTORY.length) * 100);
+    const [expenses, setExpenses] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const pending = REQUESTS.filter(r => r.status === "Submitted");
-    const drafts  = REQUESTS.filter(r => r.status === "Draft");
+    useEffect(() => {
+        const fetchExpenses = async () => {
+            try {
+                const resp = await fetch("http://localhost:5000/api/expenses/me", {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                });
+                const data = await resp.json();
+                if (resp.ok) setExpenses(data);
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
+        };
+        fetchExpenses();
+    }, []);
 
-    const recentHistory = HISTORY.slice(0, 3);
-    const recentRequests = REQUESTS.slice(0, 3);
+    const history = expenses.filter(e => e.status === 'approved' || e.status === 'rejected');
+    const requests = expenses.filter(e => e.status === 'pending' || e.status === 'active');
+
+    const approved = history.filter(h => h.status === "approved");
+    const rejected = history.filter(h => h.status === "rejected");
+    const approvedTotal = approved.reduce((a, b) => a + Number(b.amount || 0), 0);
+    const approvalRate = history.length > 0 ? Math.round((approved.length / history.length) * 100) : 0;
+
+    const pending = requests.filter(r => r.status === "active");
+    const drafts  = requests.filter(r => r.status === "pending");
+
+    const recentHistory = history.slice(0, 3);
+    const recentRequests = requests.slice(0, 3);
 
     return (
         <>
@@ -85,7 +90,7 @@ export default function EmployeeOverview() {
                             <h1 style={{ fontSize: 22, fontWeight: 700, color: C.dark, letterSpacing: "-0.3px" }}>
                                 My <span style={{ color: C.teal }}>Overview</span>
                             </h1>
-                            <p style={{ fontSize: 12, color: "#aac5c8", marginTop: 3 }}>Employee View · Sarah · Summary of all activity</p>
+                            <p style={{ fontSize: 12, color: "#aac5c8", marginTop: 3 }}>Employee View · Summary of all activity</p>
                         </div>
                         <button
                             style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 10, border: "none", background: `linear-gradient(135deg,${C.dark},${C.teal})`, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 3px 12px rgba(23,37,42,0.18)" }}
@@ -116,21 +121,23 @@ export default function EmployeeOverview() {
                     </div>
 
                     {/* Approval Rate Banner */}
-                    <div style={{ background: "#fff", border: "1px solid #eef4f5", borderRadius: 14, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <TrendingUp size={15} style={{ color: "#2d7a5a" }} />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
-                                {approvalRate}% approval rate
-                            </span>
-                            <span style={{ fontSize: 12, color: "#aac5c8" }}>— {approved.length} of {HISTORY.length} resolved requests approved</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 160, height: 6, background: "#eef4f5", borderRadius: 4, overflow: "hidden" }}>
-                                <div style={{ width: `${approvalRate}%`, height: "100%", background: "linear-gradient(90deg,#2d7a5a,#6FB3B8)", borderRadius: 4 }} />
+                    {history.length > 0 && (
+                        <div style={{ background: "#fff", border: "1px solid #eef4f5", borderRadius: 14, padding: "14px 18px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <TrendingUp size={15} style={{ color: "#2d7a5a" }} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                                    {approvalRate}% approval rate
+                                </span>
+                                <span style={{ fontSize: 12, color: "#aac5c8" }}>— {approved.length} of {history.length} resolved requests approved</span>
                             </div>
-                            <span style={{ fontSize: 11, color: "#aac5c8", minWidth: 30 }}>{approvalRate}%</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ width: 160, height: 6, background: "#eef4f5", borderRadius: 4, overflow: "hidden" }}>
+                                    <div style={{ width: `${approvalRate}%`, height: "100%", background: "linear-gradient(90deg,#2d7a5a,#6FB3B8)", borderRadius: 4 }} />
+                                </div>
+                                <span style={{ fontSize: 11, color: "#aac5c8", minWidth: 30 }}>{approvalRate}%</span>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Two-column grid */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px,1fr))", gap: 16 }}>
@@ -144,19 +151,23 @@ export default function EmployeeOverview() {
                                 </span>
                             </div>
                             <div>
-                                {recentRequests.map((r, i) => {
-                                    const cat = CAT_COLORS[r.category] || CAT_COLORS.Other;
+                                {loading ? (
+                                    <div style={{ padding: "40px 20px", textAlign: "center", color: "#aac5c8", fontSize: 13 }}>Loading...</div>
+                                ) : recentRequests.length === 0 ? (
+                                    <div style={{ padding: "40px 20px", textAlign: "center", color: "#aac5c8", fontSize: 13 }}>No recent requests</div>
+                                ) : recentRequests.map((r, i) => {
+                                    const cat = CAT_COLORS[r.type] || CAT_COLORS.Other;
                                     return (
                                         <div key={r.id} style={{ padding: "13px 20px", borderBottom: i < recentRequests.length - 1 ? "1px solid #f7fafa" : "none", display: "flex", alignItems: "center", gap: 12 }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                                                     <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{r.description}</span>
-                                                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 7px", borderRadius: 6, background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>{r.category}</span>
+                                                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 7px", borderRadius: 6, background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>{r.type}</span>
                                                 </div>
-                                                <div style={{ fontSize: 11.5, color: "#aac5c8", marginTop: 2 }}>{r.date}</div>
+                                                <div style={{ fontSize: 11.5, color: "#aac5c8", marginTop: 2 }}>{new Date(r.expensedate).toLocaleDateString()}</div>
                                             </div>
                                             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{sym(r.currency)}{r.amount.toLocaleString()}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₹{Number(r.amount).toLocaleString()}</div>
                                                 <div style={{ marginTop: 4 }}><StatusBadge status={r.status} /></div>
                                             </div>
                                         </div>
@@ -174,9 +185,13 @@ export default function EmployeeOverview() {
                                 </span>
                             </div>
                             <div>
-                                {recentHistory.map((h, i) => {
-                                    const isRej = h.status === "Rejected";
-                                    const cat = CAT_COLORS[h.category] || CAT_COLORS.Other;
+                                {loading ? (
+                                    <div style={{ padding: "40px 20px", textAlign: "center", color: "#aac5c8", fontSize: 13 }}>Loading...</div>
+                                ) : recentHistory.length === 0 ? (
+                                    <div style={{ padding: "40px 20px", textAlign: "center", color: "#aac5c8", fontSize: 13 }}>No history yet</div>
+                                ) : recentHistory.map((h, i) => {
+                                    const isRej = h.status === "rejected";
+                                    const cat = CAT_COLORS[h.type] || CAT_COLORS.Other;
                                     return (
                                         <div key={h.id} style={{ padding: "13px 20px", borderBottom: i < recentHistory.length - 1 ? "1px solid #f7fafa" : "none", display: "flex", alignItems: "center", gap: 12 }}>
                                             <div style={{ width: 32, height: 32, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: isRej ? "rgba(181,74,74,0.08)" : "rgba(45,122,90,0.08)", border: `1px solid ${isRej ? "#f5c6c6" : "#b8dfc9"}` }}>
@@ -185,12 +200,12 @@ export default function EmployeeOverview() {
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                                                     <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{h.description}</span>
-                                                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 7px", borderRadius: 6, background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>{h.category}</span>
+                                                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 7px", borderRadius: 6, background: cat.bg, color: cat.text, border: `1px solid ${cat.border}` }}>{h.type}</span>
                                                 </div>
-                                                <div style={{ fontSize: 11.5, color: "#aac5c8", marginTop: 2 }}>{h.date} · {h.approver}</div>
+                                                <div style={{ fontSize: 11.5, color: "#aac5c8", marginTop: 2 }}>{new Date(h.expensedate).toLocaleDateString()}</div>
                                             </div>
                                             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{sym(h.currency)}{h.amount.toLocaleString()}</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₹{Number(h.amount).toLocaleString()}</div>
                                                 <div style={{ marginTop: 4 }}><StatusBadge status={h.status} /></div>
                                             </div>
                                         </div>

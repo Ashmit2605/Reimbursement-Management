@@ -2,6 +2,9 @@ import './App.css'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginSection from './Components/Loginsection/LoginSection'
 
+// ✅ Main Page Import
+import Mainpage from './pages/Mainpage/Mainpage'
+
 // Dashboard Layouts (from pages folder)
 import AdminDash from './pages/AdminDash/AdminDash'
 import ManagerDash from './pages/ManagerDash/ManagerDash'
@@ -40,7 +43,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LoginSection />} />
+
+        {/* ✅ Main Landing Page */}
+        <Route path="/" element={<Mainpage />} />
+
+        {/* ✅ Login Page */}
+        <Route path="/login" element={<LoginSection />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminDash />}>
@@ -84,7 +92,9 @@ function App() {
           <Route path="settings" element={<FinanceSettings />} />
         </Route>
 
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   )

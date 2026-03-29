@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Filter, CheckCircle, XCircle, Clock, Eye, FileText, ChevronRight, Check, X, User, Hash, TrendingUp, AlertCircle, Info } from 'lucide-react'
 
 const css = `
@@ -124,49 +124,89 @@ const css = `
   .btn-ghost { background: transparent; border: 1.5px solid #e0eef0; color: #7aa8ae; }
 `
 
-const MOCK_REQUESTS = [
-  { id: 'EXP-1092', employee: 'Rahul Verma', empId: 'EMP042', amount: '₹12,400', category: 'Medical', date: 'Mar 29, 2024', status: 'Pending', step: 1, sequence: ['Manager', 'Finance', 'Director'] },
-  { id: 'EXP-1093', employee: 'Priya Das', empId: 'EMP085', amount: '₹3,500',  category: 'Internet', date: 'Mar 28, 2024', status: 'Pending', step: 1, sequence: ['Manager', 'Director'] },
-  { id: 'EXP-1090', employee: 'Arjun Mehra', empId: 'EMP101', amount: '₹8,200',  category: 'Travel',   date: 'Mar 24, 2024', status: 'Approved', step: 2, sequence: ['Manager', 'Finance'] },
-  { id: 'EXP-1088', employee: 'Surbhi Jha', empId: 'EMP012', amount: '₹1,500',  category: 'Office',   date: 'Mar 22, 2024', status: 'Rejected', step: 1, sequence: ['Manager'] },
-]
+const Request = () => {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pending');
+  const [search, setSearch] = useState('');
+  const [selectedReq, setSelectedReq] = useState(null);
+  const [modalType, setModalType] = useState(null);
+  const [remark, setRemark] = useState('');
 
-export default function ManagerRequest() {
-  const [activeTab, setActiveTab] = useState('pending')
-  const [search, setSearch] = useState('')
-  const [selectedReq, setSelectedReq] = useState(null)
-  const [modalType, setModalType] = useState(null) // 'approve', 'reject', 'details'
-  const [remark, setRemark] = useState('')
+  const fetchTasks = async () => {
+    try {
+      const resp = await fetch("http://localhost:5000/api/expenses/tasks", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await resp.json();
+      if (resp.ok) setRequests(data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchTasks(); }, []);
 
   const stats = {
-    pending: MOCK_REQUESTS.filter(r => r.status === 'Pending').length,
-    approved: MOCK_REQUESTS.filter(r => r.status === 'Approved').length,
-    rejected: MOCK_REQUESTS.filter(r => r.status === 'Rejected').length,
-  }
+    pending: requests.length,
+    approved: 0, // In this session, focusing on pending tasks. Approver history can be added later.
+    rejected: 0,
+  };
 
-  const filtered = MOCK_REQUESTS.filter(req => {
-    const matchesTab = activeTab === 'pending' ? req.status === 'Pending' : req.status !== 'Pending'
-    const matchesSearch = req.employee.toLowerCase().includes(search.toLowerCase()) || req.id.toLowerCase().includes(search.toLowerCase())
-    return matchesTab && matchesSearch
-  })
+  const filtered = requests.filter(req => {
+    return (req.employeeName || '').toLowerCase().includes(search.toLowerCase()) || (req.id || '').toString().includes(search);
+  });
 
   const openModal = (req, type) => {
-    setSelectedReq(req)
-    setModalType(type)
-    setRemark('')
-  }
+    setSelectedReq(req);
+    setModalType(type);
+    setRemark('');
+  };
 
-  const handleAction = () => {
-    // Mock action handler
-    console.log(`${modalType} request ${selectedReq.id} with remark: ${remark}`)
-    setModalType(null)
-  }
+  const handleAction = async () => {
+    try {
+      const payload = {
+        stepId: selectedReq.id,
+        expenseId: selectedReq.expenseId,
+        decision: modalType === 'approve' ? 'approved' : 'rejected',
+        comment: remark,
+        totalSteps: selectedReq.totalSteps,
+        stepsVerified: selectedReq.stepsVerified
+      };
+
+      console.log('Sending approval request:', payload);
+
+      const resp = await fetch("http://localhost:5000/api/expenses/approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+
+      if (resp.ok) {
+        console.log('Approval successful:', data);
+        alert(data.message || 'Action completed successfully');
+        setModalType(null);
+        setRemark('');
+        fetchTasks();
+      } else {
+        console.error('Approval failed:', data);
+        alert('Error: ' + (data.message || 'Failed to process request'));
+      }
+    } catch (err) {
+      console.error('Request error:', err);
+      alert('Error: ' + err.message);
+    }
+  };
 
   return (
     <>
       <style>{css}</style>
       <div className="man-wrap">
-        
+
         {/* Header */}
         <div className="man-header">
           <div>
@@ -205,9 +245,9 @@ export default function ManagerRequest() {
           </div>
           <div className="search-wrap">
             <Search />
-            <input 
-              className="search-input" 
-              placeholder="Search by Employee name or Request ID..." 
+            <input
+              className="search-input"
+              placeholder="Search by Employee name or Request ID..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -232,40 +272,33 @@ export default function ManagerRequest() {
               <tbody>
                 {filtered.map(req => (
                   <tr key={req.id}>
-                    <td style={{ fontWeight: 700, color: '#388087' }}>{req.id}</td>
+                    <td style={{ fontWeight: 700, color: '#388087' }}>EXP-{req.expenseId}</td>
                     <td>
                       <div className="emp-cell">
-                        <div className="emp-avatar">{req.employee.split(' ').map(n=>n[0]).join('')}</div>
+                        <div className="emp-avatar">{(req.employeeName || 'U').split(' ').map(n => n[0]).join('')}</div>
                         <div>
-                          <div className="emp-name">{req.employee}</div>
-                          <div className="emp-id">{req.empId}</div>
+                          <div className="emp-name">{req.employeeName}</div>
+                          <div className="emp-id">User ID: {req.assignedUserId}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ fontWeight: 700, fontSize: '15px' }}>{req.amount}</td>
+                    <td style={{ fontWeight: 700, fontSize: '15px' }}>₹{Number(req.amount).toLocaleString()}</td>
                     <td>
                       <div className="seq-badge">
                         <User size={12} />
-                        Step {req.step}: {req.sequence[req.step - 1]}
-                        {req.sequence.length > 1 && <ChevronRight size={10} />}
+                        Step {req.stepNumber}: {req.role}
                       </div>
                     </td>
-                    <td style={{ fontSize: '13px', color: '#7aa8ae' }}>{req.date}</td>
+                    <td style={{ fontSize: '13px', color: '#7aa8ae' }}>Today</td>
                     <td>
-                      <span className={`status-pill ${req.status === 'Pending' ? 'st-pending' : req.status === 'Approved' ? 'st-approved' : 'st-rejected'}`}>
-                        {req.status}
+                      <span className="status-pill st-pending">
+                        Your Turn
                       </span>
                     </td>
                     <td>
                       <div className="action-btns">
-                        {req.status === 'Pending' ? (
-                          <>
-                            <button className="btn-ic btn-yes" title="Approve" onClick={() => openModal(req, 'approve')}><Check size={16} /></button>
-                            <button className="btn-ic btn-no" title="Reject" onClick={() => openModal(req, 'reject')}><X size={16} /></button>
-                          </>
-                        ) : (
-                          <button className="btn-ic" onClick={() => openModal(req, 'details')}><Eye size={16} /></button>
-                        )}
+                        <button className="btn-ic btn-yes" title="Approve" onClick={() => openModal(req, 'approve')}><Check size={16} /></button>
+                        <button className="btn-ic btn-no" title="Reject" onClick={() => openModal(req, 'reject')}><X size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -284,23 +317,23 @@ export default function ManagerRequest() {
                   <>
                     <div className="modal-icon" style={{ background: 'rgba(46,125,79,0.1)', color: '#2E7D4F' }}><CheckCircle size={32} /></div>
                     <div className="modal-title">Approve Expense</div>
-                    <div className="modal-desc">Are you sure you want to approve this request of <b>{selectedReq?.amount}</b> for {selectedReq?.employee}? It will move to the next stage.</div>
+                    <div className="modal-desc">Are you sure you want to approve this request of <b>₹{Number(selectedReq?.amount).toLocaleString()}</b> for <b>{selectedReq?.employeeName}</b>? It will move to the next stage.</div>
                   </>
                 )}
-                
+
                 {modalType === 'reject' && (
                   <>
                     <div className="modal-icon" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}><AlertCircle size={32} /></div>
                     <div className="modal-title">Reject Expense</div>
-                    <div className="modal-desc">Please provide a reason for rejecting the claim by {selectedReq?.employee}. This is mandatory for employee clarity.</div>
+                    <div className="modal-desc">Please provide a reason for rejecting the claim by <b>{selectedReq?.employeeName}</b>. This is mandatory for employee clarity.</div>
                   </>
                 )}
 
                 {(modalType === 'approve' || modalType === 'reject') && (
-                   <div style={{ marginBottom: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
                     <label style={{ marginBottom: '8px', display: 'block' }}>Remark / Comments</label>
-                    <textarea 
-                      className="remark-area" 
+                    <textarea
+                      className="remark-area"
                       placeholder="Add your comments here..."
                       value={remark}
                       onChange={e => setRemark(e.target.value)}
@@ -310,41 +343,28 @@ export default function ManagerRequest() {
 
                 {modalType === 'details' && (
                   <>
-                     <div className="modal-icon" style={{ background: '#f0f7f8', color: '#17252A' }}><Info size={32} /></div>
-                     <div className="modal-title">Request Details</div>
-                     <div className="modal-desc" style={{ textAlign: 'left', marginBottom: '16px' }}>
-                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-                         <div><b>Employee:</b> {selectedReq?.employee}</div>
-                         <div><b>Amount:</b> {selectedReq?.amount}</div>
-                         <div><b>Category:</b> {selectedReq?.category}</div>
-                         <div><b>Date:</b> {selectedReq?.date}</div>
-                       </div>
-                       <div style={{ marginTop: '20px' }}>
-                         <b>Approval Workflow Progress:</b>
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                           {selectedReq?.sequence.map((step, idx) => (
-                             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                               <div style={{ 
-                                 width: '24px', height: '24px', borderRadius: '50%', background: idx + 1 < selectedReq.step ? '#2E7D4F' : (idx + 1 === selectedReq.step ? '#388087' : '#eee'), 
-                                 color: '#fff', fontSize: '11px', display: 'flex', alignItems: 'center', justifyCenter: 'center' 
-                               }}>
-                                 {idx + 1 < selectedReq.step ? <Check size={12} /> : idx + 1}
-                               </div>
-                               <span style={{ fontSize: '11px', color: idx + 1 === selectedReq.step ? '#17252A' : '#7aa8ae' }}>{step}</span>
-                               {idx < selectedReq.sequence.length - 1 && <ChevronRight size={12} color="#ddd" />}
-                             </div>
-                           ))}
-                         </div>
-                       </div>
-                     </div>
+                    <div className="modal-icon" style={{ background: '#f0f7f8', color: '#17252A' }}><Info size={32} /></div>
+                    <div className="modal-title">Request Details</div>
+                    <div className="modal-desc" style={{ textAlign: 'left', marginBottom: '16px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                        <div><b>Employee:</b> {selectedReq?.employeeName}</div>
+                        <div><b>Amount:</b> ₹{Number(selectedReq?.amount).toLocaleString()}</div>
+                        <div><b>Type:</b> {selectedReq?.expenseType}</div>
+                        <div><b>Step:</b> {selectedReq?.stepNumber} of {selectedReq?.totalSteps}</div>
+                      </div>
+                      <div style={{ marginTop: '20px' }}>
+                        <b>Description:</b>
+                        <div style={{ fontSize: '12px', color: '#7aa8ae', marginTop: '6px' }}>{selectedReq?.description}</div>
+                      </div>
+                    </div>
                   </>
                 )}
 
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => setModalType(null)}>Close</button>
                   {modalType !== 'details' && (
-                    <button 
-                      className="btn btn-primary" 
+                    <button
+                      className="btn btn-primary"
                       disabled={modalType === 'reject' && !remark.trim()}
                       onClick={handleAction}
                     >
@@ -361,3 +381,5 @@ export default function ManagerRequest() {
     </>
   )
 }
+
+export default Request

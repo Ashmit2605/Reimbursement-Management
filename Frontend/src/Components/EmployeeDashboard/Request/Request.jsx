@@ -1,32 +1,32 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Plus, Upload, X, ChevronRight, Clock, CheckCircle, FileText, Eye, Trash2, Paperclip } from "lucide-react";
 
 const C = {
-  dark:  "#388087",
-  mid:   "#6FB3B8",
+  dark: "#388087",
+  mid: "#6FB3B8",
   light: "#BADFE7",
-  pale:  "#C2EDCE",
-  navy:  "#17252A",
+  pale: "#C2EDCE",
+  navy: "#17252A",
 };
 
-const CURRENCIES = ["INR ₹","USD $","EUR €","GBP £","AED د.إ","JPY ¥","CAD $","AUD $"];
-const CATEGORIES = ["Food","Travel","Accommodation","Office Supplies","Software","Equipment","Marketing","Other"];
-const PAID_BY    = ["Self","Company Card","Petty Cash","Bank Transfer"];
+const CURRENCIES = ["INR ₹", "USD $", "EUR €", "GBP £", "AED د.إ", "JPY ¥", "CAD $", "AUD $"];
+const CATEGORIES = ["Food", "Travel", "Accommodation", "Office Supplies", "Software", "Equipment", "Marketing", "Other"];
+const PAID_BY = ["Self", "Company Card", "Petty Cash", "Bank Transfer"];
 
 const INIT = [
-  { id:1, employee:"Sarah", description:"Restaurant bill",  date:"4th Oct, 2025", category:"Food",           paidBy:"Sarah",       remarks:"Team lunch",   amount:5000, currency:"INR ₹", status:"Draft",     approvals:[] },
-  { id:2, employee:"Sarah", description:"Flight tickets",   date:"6th Oct, 2025", category:"Travel",         paidBy:"Company Card",remarks:"Client visit",  amount:567,  currency:"USD $", status:"Submitted", approvals:[{approver:"Manager",status:"Pending",time:""}] },
-  { id:3, employee:"Sarah", description:"Hotel stay",       date:"7th Oct, 2025", category:"Accommodation",  paidBy:"Self",        remarks:"Conference",   amount:320,  currency:"USD $", status:"Approved",  approvals:[{approver:"John",status:"Approved",time:"12:44 7th Oct, 2025"}] },
+  { id: 1, employee: "Sarah", description: "Restaurant bill", date: "4th Oct, 2025", category: "Food", paidBy: "Sarah", remarks: "Team lunch", amount: 5000, currency: "INR ₹", status: "Draft", approvals: [] },
+  { id: 2, employee: "Sarah", description: "Flight tickets", date: "6th Oct, 2025", category: "Travel", paidBy: "Company Card", remarks: "Client visit", amount: 567, currency: "USD $", status: "Submitted", approvals: [{ approver: "Manager", status: "Pending", time: "" }] },
+  { id: 3, employee: "Sarah", description: "Hotel stay", date: "7th Oct, 2025", category: "Accommodation", paidBy: "Self", remarks: "Conference", amount: 320, currency: "USD $", status: "Approved", approvals: [{ approver: "John", status: "Approved", time: "12:44 7th Oct, 2025" }] },
 ];
 
 const SM = {
-  Draft:     { color:"#888",    bg:"rgba(136,136,136,0.1)"  },
-  Submitted: { color:"#d4860a", bg:"rgba(212,134,10,0.1)"   },
-  Approved:  { color:"#2d7a5a", bg:"rgba(45,122,90,0.1)"    },
-  Rejected:  { color:"#b54a4a", bg:"rgba(181,74,74,0.1)"    },
+  Draft: { color: "#888", bg: "rgba(136,136,136,0.1)" },
+  Submitted: { color: "#d4860a", bg: "rgba(212,134,10,0.1)" },
+  Approved: { color: "#2d7a5a", bg: "rgba(45,122,90,0.1)" },
+  Rejected: { color: "#b54a4a", bg: "rgba(181,74,74,0.1)" },
 };
 
-const sumBy = (arr, st) => arr.filter(e => e.status === st).reduce((a,b) => a + b.amount, 0);
+const sumBy = (arr, st) => arr.filter(e => e.status === st).reduce((a, b) => a + b.amount, 0);
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -189,73 +189,116 @@ const css = `
 `;
 
 export default function ExpensePage() {
-  const [expenses, setExpenses] = useState(INIT);
-  const [modal, setModal]       = useState(null);
-  const [receipt, setReceipt]   = useState("");
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [receipt, setReceipt] = useState("");
+  const [form, setForm] = useState({ description: "", date: "", category: "", paidBy: "", currency: "INR ₹", amount: "", remarks: "" });
   const fileRef = useRef();
-  const [form, setForm] = useState({ description:"", date:"", category:"", paidBy:"", currency:"INR ₹", amount:"", remarks:"" });
 
-  const resetForm = () => { setForm({ description:"", date:"", category:"", paidBy:"", currency:"INR ₹", amount:"", remarks:"" }); setReceipt(""); };
-  const openNew    = () => { resetForm(); setModal("new"); };
-  const openDetail = (e) => { setModal({...e}); setReceipt(""); };
-  const close      = () => { setModal(null); resetForm(); };
+  const fetchExpenses = async () => {
+    try {
+      const resp = await fetch("http://localhost:5000/api/expenses/me", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await resp.json();
+      if (resp.ok) setExpenses(data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const resetForm = () => { setForm({ description: "", date: "", category: "", paidBy: "", currency: "INR ₹", amount: "", remarks: "" }); setReceipt(""); };
+  const openNew = () => { resetForm(); setModal("new"); };
+  const openDetail = (e) => { setModal({ ...e }); setReceipt(""); };
+  const close = () => { setModal(null); resetForm(); };
 
   const fv = (key) => modal === "new" ? form[key] : modal?.[key] ?? "";
   const fc = (key) => (val) => {
-    if (modal === "new") setForm(f => ({...f, [key]: val}));
-    else setModal(m => ({...m, [key]: val}));
+    if (modal === "new") setForm(f => ({ ...f, [key]: val }));
+    else setModal(m => ({ ...m, [key]: val }));
   };
 
-  const save = (draft) => {
+  const save = async (draft) => {
     if (!fv("description") || !fv("amount")) return;
-    const exp = {
-      id: Date.now(), employee:"You",
-      description: fv("description"), date: fv("date") || new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}),
-      category: fv("category")||"Other", paidBy: fv("paidBy")||"Self",
-      remarks: fv("remarks"), amount: parseFloat(fv("amount")), currency: fv("currency"),
-      status: draft ? "Draft" : "Submitted",
-      approvals: draft ? [] : [{approver:"Manager",status:"Pending",time:""}],
-    };
-    setExpenses(p => [exp, ...p]); close();
+
+    setLoading(true);
+    try {
+      const resp = await fetch("http://localhost:5000/api/expenses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          type: fv("category") || "Other",
+          description: fv("description"),
+          amount: parseFloat(fv("amount")),
+          expenseDate: fv("date") || new Date().toISOString().split('T')[0],
+          categoryPaidBy: fv("paidBy"),
+          remarks: fv("remarks"),
+          currency: fv("currency") || "INR ₹"
+        })
+      });
+
+      if (resp.ok) {
+        const result = await resp.json();
+        console.log("Expense created:", result);
+        fetchExpenses();
+        close();
+      } else {
+        const error = await resp.json();
+        alert("Failed to submit expense: " + (error.message || "Unknown error"));
+        console.error("Error response:", error);
+      }
+    } catch (err) {
+      console.error("Request error:", err);
+      alert("Error submitting expense: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const submit = (id) => {
-    setExpenses(p => p.map(e => e.id===id ? {...e, status:"Submitted", approvals:[{approver:"Manager",status:"Pending",time:""}]} : e));
+    // Already handled by initial post in this logic, but can be used for drafts if implemented
     close();
   };
 
   const del = (id) => { setExpenses(p => p.filter(e => e.id !== id)); close(); };
 
-  const isDraft    = modal && modal !== "new" && modal.status === "Draft";
+  const isDraft = modal && modal !== "new" && modal.status === "Draft";
   const isReadonly = modal && modal !== "new" && modal.status !== "Draft";
 
-  const steps = ["Draft","Submitted","Approved"];
+  const steps = ["Draft", "Submitted", "Approved"];
   const curStep = modal === "new" ? "Draft" : modal?.status || "Draft";
-  const curIdx  = steps.indexOf(curStep);
+  const curIdx = steps.indexOf(curStep);
 
   return (
     <>
       <style>{css}</style>
 
       {modal && (
-        <div className="overlay" onClick={e => { if(e.target.classList.contains("overlay")) close(); }}>
+        <div className="overlay" onClick={e => { if (e.target.classList.contains("overlay")) close(); }}>
           <div className="modal">
 
             {/* Header */}
             <div className="mh">
               <div>
-                <div className="mt">{modal==="new" ? "New Expense" : modal.description}</div>
-                <div className="ms">{modal==="new" ? "Fill in your expense details below" : `${modal.category} · ${modal.date}`}</div>
+                <div className="mt">{modal === "new" ? "New Expense" : modal.description}</div>
+                <div className="ms">{modal === "new" ? "Fill in your expense details below" : `${modal.category} · ${modal.date}`}</div>
               </div>
               <button className="mx" onClick={close}><X /></button>
             </div>
 
             {/* Status trail */}
             <div className="trail">
-              {steps.map((s,i) => (
-                <span key={s} style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span className={`ts${i===curIdx?" on":i<curIdx?" dn":""}`}>{s}</span>
-                  {i < steps.length-1 && <span className="ta">›</span>}
+              {steps.map((s, i) => (
+                <span key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className={`ts${i === curIdx ? " on" : i < curIdx ? " dn" : ""}`}>{s}</span>
+                  {i < steps.length - 1 && <span className="ta">›</span>}
                 </span>
               ))}
             </div>
@@ -269,8 +312,8 @@ export default function ExpensePage() {
                   <div className="rh">{isReadonly ? "" : "Upload image or PDF · OCR auto-fills details"}</div>
                 </div>
               </div>
-              {!isReadonly && <button className="btn bg" style={{pointerEvents:"none"}}><Upload size={12}/>Browse</button>}
-              <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={e => e.target.files[0] && setReceipt(e.target.files[0].name)} />
+              {!isReadonly && <button className="btn bg" style={{ pointerEvents: "none" }}><Upload size={12} />Browse</button>}
+              <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={e => e.target.files[0] && setReceipt(e.target.files[0].name)} />
             </div>
 
             {/* Body */}
@@ -279,47 +322,47 @@ export default function ExpensePage() {
                 <div className="fgrid">
                   <div>
                     <label className="flbl">Description *</label>
-                    <input className="fi" placeholder="e.g. Restaurant bill" value={fv("description")} onChange={e=>fc("description")(e.target.value)} />
+                    <input className="fi" placeholder="e.g. Restaurant bill" value={fv("description")} onChange={e => fc("description")(e.target.value)} />
                   </div>
                   <div>
                     <label className="flbl">Expense Date</label>
-                    <input className="fi" type="date" value={fv("date")} onChange={e=>fc("date")(e.target.value)} />
+                    <input className="fi" type="date" value={fv("date")} onChange={e => fc("date")(e.target.value)} />
                   </div>
                   <div>
                     <label className="flbl">Category</label>
-                    <select className="fsel" value={fv("category")} onChange={e=>fc("category")(e.target.value)}>
+                    <select className="fsel" value={fv("category")} onChange={e => fc("category")(e.target.value)}>
                       <option value="">Select category</option>
-                      {CATEGORIES.map(c=><option key={c}>{c}</option>)}
+                      {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="flbl">Paid By</label>
-                    <select className="fsel" value={fv("paidBy")} onChange={e=>fc("paidBy")(e.target.value)}>
+                    <select className="fsel" value={fv("paidBy")} onChange={e => fc("paidBy")(e.target.value)}>
                       <option value="">Select</option>
-                      {PAID_BY.map(p=><option key={p}>{p}</option>)}
+                      {PAID_BY.map(p => <option key={p}>{p}</option>)}
                     </select>
                   </div>
                   <div className="full">
                     <label className="flbl">Total Amount</label>
                     <div className="arow">
-                      <select className="fsel" value={fv("currency")} onChange={e=>fc("currency")(e.target.value)}>
-                        {CURRENCIES.map(c=><option key={c}>{c}</option>)}
+                      <select className="fsel" value={fv("currency")} onChange={e => fc("currency")(e.target.value)}>
+                        {CURRENCIES.map(c => <option key={c}>{c}</option>)}
                       </select>
-                      <input className="fi" type="number" placeholder="0.00" style={{flex:1}} value={fv("amount")} onChange={e=>fc("amount")(e.target.value)} />
+                      <input className="fi" type="number" placeholder="0.00" style={{ flex: 1 }} value={fv("amount")} onChange={e => fc("amount")(e.target.value)} />
                     </div>
                     <div className="rnote">Submit in any currency — manager sees auto-converted base currency at today's live rates.</div>
                   </div>
                   <div className="full">
                     <label className="flbl">Remarks</label>
-                    <textarea className="fta" placeholder="Any notes..." value={fv("remarks")} onChange={e=>fc("remarks")(e.target.value)} />
+                    <textarea className="fta" placeholder="Any notes..." value={fv("remarks")} onChange={e => fc("remarks")(e.target.value)} />
                   </div>
                 </div>
               )}
 
               {isReadonly && (
                 <div className="fgrid">
-                  {[["Description",modal.description],["Date",modal.date],["Category",modal.category],["Paid By",modal.paidBy],["Amount",`${modal.currency} ${modal.amount?.toLocaleString()}`],["Remarks",modal.remarks||"—"]].map(([l,v])=>(
-                    <div key={l} className={l==="Description"||l==="Remarks"?"full":""}>
+                  {[["Description", modal.description], ["Date", modal.date], ["Category", modal.category], ["Paid By", modal.paidBy], ["Amount", `${modal.currency} ${modal.amount?.toLocaleString()}`], ["Remarks", modal.remarks || "—"]].map(([l, v]) => (
+                    <div key={l} className={l === "Description" || l === "Remarks" ? "full" : ""}>
                       <div className="rlab">{l}</div>
                       <div className="rval">{v}</div>
                     </div>
@@ -330,13 +373,13 @@ export default function ExpensePage() {
               {modal !== "new" && modal?.approvals?.length > 0 && (
                 <div className="alog">
                   <div className="algt">Approval History</div>
-                  {modal.approvals.map((a,i) => {
-                    const s = SM[a.status]||SM.Submitted;
+                  {modal.approvals.map((a, i) => {
+                    const s = SM[a.status] || SM.Submitted;
                     return (
                       <div className="alr" key={i}>
                         <div><div className="ala">{a.approver}</div>{a.time && <div className="alt">{a.time}</div>}</div>
-                        <span className="badge" style={{color:s.color,background:s.bg}}>
-                          <span className="bdot" style={{background:s.color}}/>{a.status}
+                        <span className="badge" style={{ color: s.color, background: s.bg }}>
+                          <span className="bdot" style={{ background: s.color }} />{a.status}
                         </span>
                       </div>
                     );
@@ -348,14 +391,14 @@ export default function ExpensePage() {
             {/* Footer */}
             <div className="mf">
               {modal === "new" && <>
-                <button className="btn bg" onClick={()=>save(true)}>Save as Draft</button>
-                <button className="btn bp" onClick={()=>save(false)}>Submit →</button>
+                <button className="btn bg" onClick={() => save(true)}>Save as Draft</button>
+                <button className="btn bp" onClick={() => save(false)}>Submit →</button>
               </>}
               {isDraft && <>
-                <button className="btn bd" onClick={()=>del(modal.id)}><Trash2 size={13}/>Delete</button>
+                <button className="btn bd" onClick={() => del(modal.id)}><Trash2 size={13} />Delete</button>
                 <button className="btn bg" onClick={close}>Cancel</button>
-                <button className="btn bo" onClick={()=>{ setExpenses(p=>p.map(e=>e.id===modal.id?{...modal}:e)); close(); }}>Save Draft</button>
-                <button className="btn bp" onClick={()=>submit(modal.id)}>Submit →</button>
+                <button className="btn bo" onClick={() => { setExpenses(p => p.map(e => e.id === modal.id ? { ...modal } : e)); close(); }}>Save Draft</button>
+                <button className="btn bp" onClick={() => submit(modal.id)}>Submit →</button>
               </>}
               {isReadonly && <button className="btn bg" onClick={close}>Close</button>}
             </div>
@@ -373,24 +416,24 @@ export default function ExpensePage() {
               <div className="psub">Employee View · Sarah</div>
             </div>
             <div className="hbtns">
-              <button className="btn bo" onClick={()=>fileRef.current?.click()}><Upload size={14}/>Upload Receipt</button>
-              <button className="btn bp" onClick={openNew}><Plus size={14}/>New Expense</button>
+              <button className="btn bo" onClick={() => fileRef.current?.click()}><Upload size={14} />Upload Receipt</button>
+              <button className="btn bp" onClick={openNew}><Plus size={14} />New Expense</button>
             </div>
           </div>
 
           {/* Summary cards */}
           <div className="srow">
             {[
-              { label:"To Submit",        val:`₹ ${sumBy(expenses,"Draft").toLocaleString()}`,     ic:<FileText/>,    bg:"rgba(111,179,184,0.11)", co:"#6FB3B8" },
-              { label:"Waiting Approval", val:`₹ ${sumBy(expenses,"Submitted").toLocaleString()}`, ic:<Clock/>,       bg:"rgba(212,134,10,0.09)",  co:"#d4860a" },
-              { label:"Approved",         val:`₹ ${sumBy(expenses,"Approved").toLocaleString()}`,  ic:<CheckCircle/>, bg:"rgba(45,122,90,0.09)",   co:"#2d7a5a" },
-            ].map(({label,val,ic,bg,co})=>(
+              { label: "To Submit", val: `₹ ${sumBy(expenses, "Draft").toLocaleString()}`, ic: <FileText />, bg: "rgba(111,179,184,0.11)", co: "#6FB3B8" },
+              { label: "Waiting Approval", val: `₹ ${sumBy(expenses, "Submitted").toLocaleString()}`, ic: <Clock />, bg: "rgba(212,134,10,0.09)", co: "#d4860a" },
+              { label: "Approved", val: `₹ ${sumBy(expenses, "Approved").toLocaleString()}`, ic: <CheckCircle />, bg: "rgba(45,122,90,0.09)", co: "#2d7a5a" },
+            ].map(({ label, val, ic, bg, co }) => (
               <div className="sc" key={label}>
-                <div className="si" style={{background:bg,color:co}}>{ic}</div>
+                <div className="si" style={{ background: bg, color: co }}>{ic}</div>
                 <div>
                   <div className="sl">{label}</div>
                   <div className="sv">{val}</div>
-                  <div className="sa"><ChevronRight size={11}/>View details</div>
+                  <div className="sa"><ChevronRight size={11} />View details</div>
                 </div>
               </div>
             ))}
@@ -400,9 +443,9 @@ export default function ExpensePage() {
           <div className="tc">
             <div className="tt">
               <div className="ttl">All Expenses</div>
-              <button className="btn bg"><Eye size={13}/>View All</button>
+              <button className="btn bg"><Eye size={13} />View All</button>
             </div>
-            <div style={{overflowX:"auto"}}>
+            <div style={{ overflowX: "auto" }}>
               <table className="tbl">
                 <thead>
                   <tr>
@@ -415,20 +458,20 @@ export default function ExpensePage() {
                   {expenses.length === 0
                     ? <tr className="empty"><td colSpan={8}>No expenses yet. Click <strong>+ New Expense</strong> to get started.</td></tr>
                     : expenses.map(exp => {
-                        const s = SM[exp.status]||SM.Draft;
-                        return (
-                          <tr key={exp.id} onClick={()=>openDetail(exp)}>
-                            <td style={{fontWeight:500}}>{exp.employee}</td>
-                            <td>{exp.description}</td>
-                            <td style={{color:"#7aa8ae",fontSize:12}}>{exp.date}</td>
-                            <td>{exp.category}</td>
-                            <td>{exp.paidBy}</td>
-                            <td style={{color:"#7aa8ae"}}>{exp.remarks||"—"}</td>
-                            <td className="amt">{exp.currency.split(" ")[1]||""}{exp.amount?.toLocaleString()}</td>
-                            <td><span className="badge" style={{color:s.color,background:s.bg}}><span className="bdot" style={{background:s.color}}/>{exp.status}</span></td>
-                          </tr>
-                        );
-                      })
+                      const s = SM[exp.status] || SM.Draft;
+                      return (
+                        <tr key={exp.id} onClick={() => openDetail(exp)}>
+                          <td style={{ fontWeight: 500 }}>{exp.employee}</td>
+                          <td>{exp.description}</td>
+                          <td style={{ color: "#7aa8ae", fontSize: 12 }}>{exp.date}</td>
+                          <td>{exp.category}</td>
+                          <td>{exp.paidBy}</td>
+                          <td style={{ color: "#7aa8ae" }}>{exp.remarks || "—"}</td>
+                          <td className="amt">{exp.currency.split(" ")[1] || ""}{exp.amount?.toLocaleString()}</td>
+                          <td><span className="badge" style={{ color: s.color, background: s.bg }}><span className="bdot" style={{ background: s.color }} />{exp.status}</span></td>
+                        </tr>
+                      );
+                    })
                   }
                 </tbody>
               </table>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Filter, CheckCircle, XCircle, Clock, Eye, FileText, ChevronDown, Check, X, AlertCircle, Calendar, Hash, User, TrendingUp } from 'lucide-react'
 
 const css = `
@@ -123,15 +123,23 @@ const css = `
   .modal-box { background: #fff; padding: 24px; border-radius: 20px; width: 400px; }
 `
 
-const INITIAL_REQUESTS = [
-  { id: 'DIR-881', employee: 'John Doe', dept: 'Engineering',   date: 'Mar 28', amount: '₹22,000', status: 'Pending' },
-  { id: 'DIR-882', employee: 'Jane Smith', dept: 'Marketing',     date: 'Mar 27', amount: '₹14,500', status: 'Pending' },
-  { id: 'DIR-883', employee: 'Robert Fox', dept: 'Sales',         date: 'Mar 25', amount: '₹8,200',  status: 'Approved' },
-  { id: 'DIR-884', employee: 'Cody Fisher', dept: 'Support',      date: 'Mar 24', amount: '₹5,000',  status: 'Rejected' },
-]
-
 export default function DirectorRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+
+  const fetchTasks = async () => {
+    try {
+      const resp = await fetch("http://localhost:5000/api/expenses/tasks", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      })
+      const data = await resp.json()
+      if (resp.ok) setRequests(data)
+    } catch (err) { console.error(err) }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { fetchTasks() }, [])
 
   return (
     <>
@@ -187,14 +195,18 @@ export default function DirectorRequests() {
                 </tr>
               </thead>
               <tbody>
-                {INITIAL_REQUESTS.map(req => (
+                {loading ? (
+                  <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'#7aa8ae'}}>Loading...</td></tr>
+                ) : requests.length === 0 ? (
+                  <tr><td colSpan={7} style={{textAlign:'center',padding:'40px',color:'#7aa8ae'}}>No pending approvals</td></tr>
+                ) : requests.filter(r => (r.employeeName || '').toLowerCase().includes(search.toLowerCase())).map(req => (
                   <tr key={req.id}>
-                    <td style={{ fontWeight:700, color:'#388087' }}>{req.id}</td>
-                    <td><div style={{ fontWeight:600 }}>{req.employee}</div></td>
-                    <td><span style={{ fontSize:12, color:'#7aa8ae' }}>{req.dept}</span></td>
-                    <td style={{ fontWeight:700 }}>{req.amount}</td>
-                    <td>{req.date}</td>
-                    <td><span className={`status-badge ${req.status === 'Pending' ? 'st-pending' : req.status === 'Approved' ? 'st-approved' : 'st-rejected'}`}>{req.status}</span></td>
+                    <td style={{ fontWeight:700, color:'#388087' }}>EXP-{req.expenseId}</td>
+                    <td><div style={{ fontWeight:600 }}>{req.employeeName}</div></td>
+                    <td><span style={{ fontSize:12, color:'#7aa8ae' }}>{req.expenseType || 'N/A'}</span></td>
+                    <td style={{ fontWeight:700 }}>₹{Number(req.amount).toLocaleString()}</td>
+                    <td>{new Date().toLocaleDateString('en-US', {month:'short',day:'numeric'})}</td>
+                    <td><span className="status-badge st-pending">Your Turn</span></td>
                     <td><button className="btn-icon-sq"><Eye size={16} /></button></td>
                   </tr>
                 ))}

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -278,39 +278,77 @@ const AvatarUploader = ({ name, imageSrc, onImageChange }) => {
 
 // ─── General Settings ─────────────────────────────────────────────────────────
 
-const GeneralSettings = ({ orgImage, onImageChange }) => {
+const GeneralSettings = ({ orgImage, onImageChange, profile, loading }) => {
   const [form, setForm] = useState({
-    orgName: "Squilla Fund",
-    email: "admin@squilla.fund",
+    orgName: "",
+    email: "",
     timezone: "Asia/Kolkata",
     currency: "USD",
   });
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        orgName: profile.companyName || "",
+        email: profile.email || "",
+        timezone: profile.timezone || "Asia/Kolkata",
+        currency: profile.currency || "USD",
+      });
+    }
+  }, [profile]);
+
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
   const [compactMode, setCompactMode] = useState(true);
   const [showTotals, setShowTotals] = useState(false);
 
   const handle = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
+  
+  const save = async () => {
+    try {
+      const resp = await fetch("http://localhost:5000/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          name: profile.name,
+          email: form.email,
+          companyName: form.orgName,
+          logoUrl: orgImage
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || "Update failed");
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (err) {
+      setError(err.message);
+      alert(err.message);
+    }
   };
+
+  if (loading) return <div style={{ padding: 20 }}>Loading settings...</div>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Profile Card */}
       <Card>
-        <SectionLabel>Organization Profile</SectionLabel>
+        <SectionLabel>{profile.role === 'admin' ? "Organization Profile" : "Personal Profile"}</SectionLabel>
         <div style={{
           display: "flex", alignItems: "center", gap: 16,
           paddingBottom: 20, marginBottom: 20, borderBottom: `1px solid ${C.gray100}`,
           flexWrap: "wrap",
         }}>
-          <AvatarUploader name={form.orgName} imageSrc={orgImage} onImageChange={onImageChange} />
+          <AvatarUploader name={profile.role === 'admin' ? form.orgName : profile.name} imageSrc={orgImage} onImageChange={onImageChange} />
           <div>
-            <p style={{ fontWeight: 700, color: C.gray900, fontSize: 15 }}>{form.orgName}</p>
+            <p style={{ fontWeight: 700, color: C.gray900, fontSize: 15 }}>{profile.role === 'admin' ? form.orgName : profile.name}</p>
             <p style={{ color: C.gray400, fontSize: 12, marginTop: 2 }}>{form.email}</p>
-            <div style={{ marginTop: 6 }}><Badge label="Pro Plan" variant="success" /></div>
-            <p style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}>Click avatar to upload a new photo</p>
+            <div style={{ marginTop: 6 }}><Badge label={profile.role.toUpperCase()} variant="teal" /></div>
+            <p style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}>Click avatar to upload a new profile photo</p>
           </div>
         </div>
 
@@ -320,11 +358,15 @@ const GeneralSettings = ({ orgImage, onImageChange }) => {
           gap: 16,
         }}>
           <div>
-            <FieldLabel>Organization Name</FieldLabel>
-            <Input value={form.orgName} onChange={e => handle("orgName", e.target.value)} />
+            <FieldLabel>{profile.role === 'admin' ? "Organization Name" : "Account Name"}</FieldLabel>
+            <Input 
+              value={profile.role === 'admin' ? form.orgName : profile.name} 
+              onChange={e => profile.role === 'admin' ? handle("orgName", e.target.value) : null}
+              disabled={profile.role !== 'admin'}
+            />
           </div>
           <div>
-            <FieldLabel>Admin Email</FieldLabel>
+            <FieldLabel>Email Address</FieldLabel>
             <Input type="email" value={form.email} onChange={e => handle("email", e.target.value)} />
           </div>
           <div>
@@ -378,13 +420,46 @@ const GeneralSettings = ({ orgImage, onImageChange }) => {
 // ─── Security Settings ────────────────────────────────────────────────────────
 
 const SecuritySettings = () => {
+  const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
   const [showPass, setShowPass] = useState(false);
   const [twoFA, setTwoFA] = useState(true);
   const [updated, setUpdated] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleUpdate = () => {
-    setUpdated(true);
-    setTimeout(() => setUpdated(false), 2200);
+  const handleUpdate = async () => {
+    if (!passwords.current || !passwords.new || !passwords.confirm) {
+        alert("Please fill in all password fields");
+        return;
+    }
+    if (passwords.new !== passwords.confirm) {
+        alert("Passwords do not match");
+        return;
+    }
+
+    try {
+      const resp = await fetch("http://localhost:5000/api/users/change-password", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+            currentPassword: passwords.current,
+            newPassword: passwords.new
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || "Failed to update password");
+
+      setUpdated(true);
+      setPasswords({ current: "", new: "", confirm: "" });
+      setTimeout(() => setUpdated(false), 2200);
+      alert("Password updated successfully");
+    } catch (err) {
+      setError(err.message);
+      alert(err.message);
+    }
   };
 
   const sessions = [
@@ -411,14 +486,15 @@ const SecuritySettings = () => {
       <Card>
         <SectionLabel>Change Password</SectionLabel>
         <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 440 }}>
-          {["Current Password", "New Password", "Confirm New Password"].map(label => (
-            <div key={label}>
-              <FieldLabel>{label}</FieldLabel>
+            <div>
+              <FieldLabel>Current Password</FieldLabel>
               <div style={{ position: "relative" }}>
                 <Input
                   type={showPass ? "text" : "password"}
                   placeholder="••••••••"
                   style={{ paddingRight: 40 }}
+                  value={passwords.current}
+                  onChange={e => setPasswords({...passwords, current: e.target.value})}
                 />
                 <button
                   onClick={() => setShowPass(s => !s)}
@@ -432,20 +508,24 @@ const SecuritySettings = () => {
                 </button>
               </div>
             </div>
-          ))}
-
-          <div>
-            <div style={{ height: 4, background: C.gray100, borderRadius: 4, overflow: "hidden" }}>
-              <div style={{
-                height: "100%", width: "66%", borderRadius: 4,
-                background: `linear-gradient(90deg, ${C.teal}, ${C.tealLight})`,
-                transition: "width 400ms ease",
-              }} />
+            <div>
+              <FieldLabel>New Password</FieldLabel>
+              <Input
+                type={showPass ? "text" : "password"}
+                placeholder="••••••••"
+                value={passwords.new}
+                onChange={e => setPasswords({...passwords, new: e.target.value})}
+              />
             </div>
-            <p style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}>
-              Password strength: <span style={{ color: C.teal, fontWeight: 600 }}>Strong</span>
-            </p>
-          </div>
+            <div>
+              <FieldLabel>Confirm New Password</FieldLabel>
+              <Input
+                type={showPass ? "text" : "password"}
+                placeholder="••••••••"
+                value={passwords.confirm}
+                onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+              />
+            </div>
         </div>
 
         <div style={{ marginTop: 20 }}>
@@ -469,45 +549,6 @@ const SecuritySettings = () => {
             </p>
           </div>
           <Toggle enabled={twoFA} onChange={setTwoFA} />
-        </div>
-      </Card>
-
-      {/* Sessions Card */}
-      <Card>
-        <SectionLabel>Active Sessions</SectionLabel>
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {sessions.map((s, i) => (
-            <div key={s.device}>
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "12px 0", gap: 12, flexWrap: "wrap",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                    background: s.current ? "#2E7D4F" : C.gray200,
-                    boxShadow: s.current ? "0 0 0 3px #2E7D4F22" : "none",
-                  }} />
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: C.gray700 }}>{s.device}</p>
-                    <p style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>{s.ip} · {s.time}</p>
-                  </div>
-                </div>
-                {s.current
-                  ? <Badge label="This device" variant="teal" />
-                  : (
-                    <button style={{
-                      fontSize: 11, fontWeight: 600, color: "#C0392B",
-                      background: "#FFF0EE", border: "none", borderRadius: 8,
-                      padding: "4px 12px", cursor: "pointer", fontFamily: "inherit",
-                    }}>
-                      Revoke
-                    </button>
-                  )}
-              </div>
-              {i < sessions.length - 1 && <Divider />}
-            </div>
-          ))}
         </div>
       </Card>
     </div>
@@ -541,6 +582,35 @@ const TabIcon = ({ tab, active }) => {
 export default function SettingsPage() {
   const [active, setActive] = useState("General");
   const [orgImage, setOrgImage] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const resp = await fetch("http://localhost:5000/api/users/profile", {
+          headers: {
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          }
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || "Failed to fetch profile");
+        setProfile(data);
+      } catch (err) {
+        console.error("Profile fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    if (profile && profile.companyLogo) {
+      setOrgImage(profile.companyLogo);
+    }
+  }, [profile]);
 
   return (
     <div style={{
@@ -638,7 +708,12 @@ export default function SettingsPage() {
 
         {/* Content Area */}
         {active === "General"
-          ? <GeneralSettings orgImage={orgImage} onImageChange={setOrgImage} />
+          ? <GeneralSettings 
+              orgImage={orgImage} 
+              onImageChange={setOrgImage} 
+              profile={profile} 
+              loading={loading}
+            />
           : <SecuritySettings />
         }
       </div>

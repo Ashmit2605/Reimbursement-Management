@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Filter, CheckCircle, XCircle, Clock, Eye, FileText, ChevronDown, Check, X, AlertCircle, Calendar, Hash, User, CreditCard, Wallet } from 'lucide-react'
 
 const css = `
@@ -109,15 +109,32 @@ const css = `
   .pay-btn:hover { background: #388087; color: #fff; }
 `
 
-const FINANCE_REQUESTS = [
-  { id: 'FIN-101', employee: 'Alice Wong',   category: 'Travel',    date: 'Mar 29', amount: '₹14,500', status: 'Queued' },
-  { id: 'FIN-102', employee: 'Bob Burton',   category: 'Internet',  date: 'Mar 28', amount: '₹999',    status: 'Paid' },
-  { id: 'FIN-103', employee: 'Charlie Day',  category: 'Others',    date: 'Mar 26', amount: '₹2,300',  status: 'Failed' },
-  { id: 'FIN-104', employee: 'Diana Prince', category: 'Medical',   date: 'Mar 25', amount: '₹12,400', status: 'Queued' },
-]
-
 export default function FinanceRequests() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+
+  const fetchApprovedExpenses = async () => {
+    try {
+      const resp = await fetch("http://localhost:5000/api/expenses/approved-for-payment", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      })
+      if (!resp.ok) {
+        const error = await resp.json()
+        console.error("Error fetching approved expenses:", error)
+        return
+      }
+      const data = await resp.json()
+      console.log("Approved expenses fetched:", data)
+      setRequests(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error("Fetch error:", err)
+      setRequests([])
+    }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { fetchApprovedExpenses() }, [])
 
   return (
     <>
@@ -140,13 +157,13 @@ export default function FinanceRequests() {
             <div className="summary-info"><div className="summary-label">Payments Queued</div><div className="summary-val">24</div></div>
           </div>
           <div className="summary-card">
-             <div className="summary-icon ic-payout"><CreditCard size={20} /></div>
+            <div className="summary-icon ic-payout"><CreditCard size={20} /></div>
             <div className="summary-info"><div className="summary-label">Failed Trans.</div><div className="summary-val">2</div></div>
           </div>
         </div>
 
         <div className="req-controls">
-           <div className="tabs-row">
+          <div className="tabs-row">
             <div className="tabs">
               <button className="tab-btn active">Ready to Pay</button>
               <button className="tab-btn">Payment History</button>
@@ -173,19 +190,20 @@ export default function FinanceRequests() {
                 </tr>
               </thead>
               <tbody>
-                {FINANCE_REQUESTS.map(req => (
+                {loading ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#7aa8ae' }}>Loading...</td></tr>
+                ) : requests.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#7aa8ae' }}>No approved expenses ready for payment</td></tr>
+                ) : requests.filter(r => (r.employeeName || '').toLowerCase().includes(search.toLowerCase())).map(req => (
                   <tr key={req.id}>
-                    <td style={{ fontWeight:700, color:'#388087' }}>{req.id}</td>
-                    <td><div style={{ fontWeight:600 }}>{req.employee}</div></td>
-                    <td><span style={{ fontSize:12, color:'#7aa8ae' }}>{req.category}</span></td>
-                    <td style={{ fontWeight:700 }}>{req.amount}</td>
-                    <td>{req.date}</td>
-                    <td><span className={`pay-pill ${req.status === 'Queued' ? 'p-queued' : req.status === 'Paid' ? 'p-paid' : 'p-failed'}`}>{req.status}</span></td>
+                    <td style={{ fontWeight: 700, color: '#388087' }}>EXP-{req.id}</td>
+                    <td><div style={{ fontWeight: 600 }}>{req.employeeName}</div></td>
+                    <td><span style={{ fontSize: 12, color: '#7aa8ae' }}>{req.type || 'N/A'}</span></td>
+                    <td style={{ fontWeight: 700 }}>₹{Number(req.amount).toLocaleString()}</td>
+                    <td>{new Date(req.updatedat || req.createdat).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+                    <td><span className="pay-pill p-queued">Ready to Pay</span></td>
                     <td>
-                      {req.status === 'Queued' 
-                        ? <button className="pay-btn">Release Payment</button> 
-                        : <button className="btn-icon-sq" title="View Transaction"><Eye size={16} /></button>
-                      }
+                      <button className="pay-btn">Release Payment</button>
                     </td>
                   </tr>
                 ))}

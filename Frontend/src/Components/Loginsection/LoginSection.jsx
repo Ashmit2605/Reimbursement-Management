@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Shield, Briefcase, User, Eye, EyeOff, Building2, DollarSign } from "lucide-react";
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const C = {
-  dark:  "#388087",
-  mid:   "#6FB3B8",
+  dark: "#388087",
+  mid: "#6FB3B8",
   light: "#BADFE7",
-  pale:  "#C2EDCE",
-  navy:  "#17252A",
+  pale: "#C2EDCE",
+  navy: "#17252A",
   white: "#FEFFFF",
 };
 
@@ -284,29 +285,31 @@ const css = `
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const IconErr = () => (
-  <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M6.5 3.8v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="6.5" cy="9.2" r="0.7" fill="currentColor"/></svg>
+  <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M6.5 3.8v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><circle cx="6.5" cy="9.2" r="0.7" fill="currentColor" /></svg>
 );
 const IconOk = () => (
-  <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6.5l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  <svg viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="6" stroke="currentColor" strokeWidth="1.3" /><path d="M4 6.5l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
 // ─── Roles ───────────────────────────────────────────────────────────────────
 const ROLES = [
-  { id: "admin",    label: "Admin",    Icon: Shield,      desc: "Full system access & config",    section: "management" },
-  { id: "director", label: "Director", Icon: Building2,   desc: "Executive oversight & strategy", section: "management" },
-  { id: "cfo",      label: "CFO",      Icon: DollarSign,  desc: "Finance & budget control",       section: "management" },
-  { id: "manager",  label: "Manager",  Icon: Briefcase,   desc: "Team & operations oversight",    section: "team" },
-  { id: "employee", label: "Employee", Icon: User,        desc: "Standard workspace access",      section: "team" },
+  { id: "admin", label: "Admin", Icon: Shield, desc: "Full system access & config", section: "management" },
+  { id: "director", label: "Director", Icon: Building2, desc: "Executive oversight & strategy", section: "management" },
+  { id: "cfo", label: "CFO", Icon: DollarSign, desc: "Finance & budget control", section: "management" },
+  { id: "manager", label: "Manager", Icon: Briefcase, desc: "Team & operations oversight", section: "team" },
+  { id: "employee", label: "Employee", Icon: User, desc: "Standard workspace access", section: "team" },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export default function AuthPage() {
-  const [role, setRole]       = useState("admin");
-  const [mode, setMode]       = useState("login");
-  const [showPw, setShowPw]   = useState(false);
-  const [form, setForm]       = useState({ email: "", password: "", name: "", confirm: "" });
+export default function LoginSection() {
+  const navigate = useNavigate();
+  const [role, setRole] = useState("admin");
+  const [mode, setMode] = useState("login");
+  const [showPw, setShowPw] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "", name: "", confirm: "", companyName: "" });
   const [touched, setTouched] = useState({ email: false });
-  const [alert, setAlert]     = useState({ text: "", kind: "" });
+  const [alert, setAlert] = useState({ text: "", kind: "" });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!alert.text) return;
@@ -316,8 +319,8 @@ export default function AuthPage() {
 
   const emailSt =
     !touched.email || !form.email ? "idle"
-    : EMAIL_RE.test(form.email)   ? "ok"
-    : "err";
+      : EMAIL_RE.test(form.email) ? "ok"
+        : "err";
 
   const fiEmail = `fi${emailSt === "err" ? " err" : emailSt === "ok" ? " ok" : ""}`;
 
@@ -332,9 +335,10 @@ export default function AuthPage() {
     setShowPw(false);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setTouched({ email: true });
+
     if (!EMAIL_RE.test(form.email)) {
       setAlert({ text: "Please enter a valid email address.", kind: "err" });
       return;
@@ -343,7 +347,72 @@ export default function AuthPage() {
       setAlert({ text: "Password is required.", kind: "err" });
       return;
     }
-    // ── connect your API here ──
+
+    setLoading(true);
+    try {
+      const resp = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || "Login failed");
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setAlert({ text: "Login successful! Redirecting...", kind: "succ" });
+
+      setTimeout(() => {
+        if (data.user.role === "admin") navigate("/admin");
+        else if (data.user.role === "manager") navigate("/manager");
+        else if (data.user.role === "employee") navigate("/employee");
+        else if (data.user.role === "finance") navigate("/finance");
+        else if (data.user.role === "director") navigate("/director");
+        else navigate("/");
+      }, 1000);
+    } catch (err) {
+      setAlert({ text: err.message, kind: "err" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.password || !form.companyName) {
+      setAlert({ text: "All fields are required.", kind: "err" });
+      return;
+    }
+    if (form.password !== form.confirm) {
+      setAlert({ text: "Passwords do not match.", kind: "err" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const resp = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          companyName: form.companyName
+        }),
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.message || "Signup failed");
+
+      setAlert({ text: "Account created successfully! Please log in.", kind: "succ" });
+      setTimeout(() => setMode("login"), 2000);
+    } catch (err) {
+      setAlert({ text: err.message, kind: "err" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgot = (e) => {
@@ -357,7 +426,7 @@ export default function AuthPage() {
   };
 
   const managementRoles = ROLES.filter(r => r.section === "management");
-  const teamRoles        = ROLES.filter(r => r.section === "team");
+  const teamRoles = ROLES.filter(r => r.section === "team");
 
   return (
     <>
@@ -370,8 +439,8 @@ export default function AuthPage() {
             <div className="sb-logo">
               <div className="sb-mark">
                 <svg viewBox="0 0 20 20" fill="none">
-                  <path d="M10 2L18 7V13L10 18L2 13V7L10 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-                  <circle cx="10" cy="10" r="2.8" fill="white" fillOpacity="0.85"/>
+                  <path d="M10 2L18 7V13L10 18L2 13V7L10 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                  <circle cx="10" cy="10" r="2.8" fill="white" fillOpacity="0.85" />
                 </svg>
               </div>
               <span className="sb-name">Squilla</span>
@@ -425,8 +494,8 @@ export default function AuthPage() {
               {mode === "forgot"
                 ? "Enter your email address to receive a password reset link."
                 : mode === "signup"
-                ? "Create your admin account to get started."
-                : cur.desc}
+                  ? "Create your admin account to get started."
+                  : cur.desc}
             </p>
 
             {alert.text && <div className={`alert ${alert.kind}`}>{alert.text}</div>}
@@ -445,7 +514,7 @@ export default function AuthPage() {
                     onBlur={() => setTouched(t => ({ ...t, email: true }))}
                   />
                   {emailSt === "err" && <span className="hint err"><IconErr /> Enter a valid email — e.g. name@company.com</span>}
-                  {emailSt === "ok"  && <span className="hint ok"><IconOk /> Looks good!</span>}
+                  {emailSt === "ok" && <span className="hint ok"><IconOk /> Looks good!</span>}
                 </div>
 
                 <div className="field">
@@ -470,10 +539,10 @@ export default function AuthPage() {
 
                 <button className="google-btn" type="button">
                   <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                   </svg>
                   Continue with Google
                 </button>
@@ -507,7 +576,7 @@ export default function AuthPage() {
                     onBlur={() => setTouched(t => ({ ...t, email: true }))}
                   />
                   {emailSt === "err" && <span className="hint err"><IconErr /> Enter a valid email — e.g. name@company.com</span>}
-                  {emailSt === "ok"  && <span className="hint ok"><IconOk /> Looks good!</span>}
+                  {emailSt === "ok" && <span className="hint ok"><IconOk /> Looks good!</span>}
                 </div>
 
                 <button className="cta" onClick={handleForgot}>Send Reset Link →</button>
@@ -545,7 +614,7 @@ export default function AuthPage() {
                     onBlur={() => setTouched(t => ({ ...t, email: true }))}
                   />
                   {emailSt === "err" && <span className="hint err"><IconErr /> Enter a valid email — e.g. name@company.com</span>}
-                  {emailSt === "ok"  && <span className="hint ok"><IconOk /> Looks good!</span>}
+                  {emailSt === "ok" && <span className="hint ok"><IconOk /> Looks good!</span>}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -579,8 +648,23 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <button className="cta" onClick={(e) => { e.preventDefault(); }}>
-                  Sign Up →
+                <div className="field">
+                  <label>Company Name</label>
+                  <input
+                    className="fi"
+                    type="text"
+                    placeholder="Acme Corp"
+                    value={form.companyName}
+                    onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
+                  />
+                </div>
+
+                <button
+                  className="cta"
+                  onClick={handleSignup}
+                  disabled={loading}
+                >
+                  {loading ? "Creating Account..." : "Sign Up →"}
                 </button>
 
                 <p className="foot" style={{ marginTop: 14 }}>
