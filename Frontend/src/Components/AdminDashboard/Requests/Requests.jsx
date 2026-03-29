@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { Search, Filter, CheckCircle, XCircle, Clock, Eye, FileText, ChevronDown, Check, X, AlertCircle, Calendar, Hash, User } from 'lucide-react'
+import { useState } from 'react'
+import { Search, CheckCircle, XCircle, Clock, Eye, FileText, Check, X, Calendar, Hash } from 'lucide-react'
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -15,7 +15,6 @@ const css = `
   .req-title span { color: #388087; }
   .req-sub { font-size: 13px; color: #7aa8ae; margin-top: 2px; }
 
-  /* Summary Cards */
   .summary-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
     margin-bottom: 24px;
@@ -43,7 +42,6 @@ const css = `
   .ic-approved { background: rgba(56,128,135,0.1); color: #388087; }
   .ic-rejected { background: rgba(181,74,74,0.1); color: #b54a4a; }
 
-  /* Controls Section */
   .req-controls {
     display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px;
   }
@@ -71,7 +69,6 @@ const css = `
   }
   .tab-btn.active .tab-count { background: #388087; color: #fff; }
 
-  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .search-wrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
   .search-wrap svg {
     position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -85,7 +82,6 @@ const css = `
   }
   .search-input:focus { border-color: #6FB3B8; box-shadow: 0 0 0 3px rgba(111,179,184,0.1); }
 
-  /* Table Card */
   .table-card {
     background: #fff; border-radius: 20px;
     border: 1.5px solid rgba(111,179,184,0.13);
@@ -104,7 +100,6 @@ const css = `
   .tbl tbody tr { transition: background 0.1s; }
   .tbl tbody tr:hover { background: rgba(111,179,184,0.03); }
 
-  /* Cells */
   .user-cell { display: flex; align-items: center; gap: 12px; }
   .avatar {
     width: 36px; height: 36px; border-radius: 10px;
@@ -121,7 +116,6 @@ const css = `
   }
   .date-cell { font-size: 12.5px; color: #5a7b80; display: flex; align-items: center; gap: 6px; }
 
-  /* Status Badges */
   .status-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
@@ -130,24 +124,19 @@ const css = `
   .st-approved { background: rgba(56,128,135,0.1); color: #388087; }
   .st-rejected { background: rgba(181,74,74,0.1); color: #b54a4a; }
 
-  /* Action Buttons */
   .actions { display: flex; align-items: center; gap: 8px; }
   .btn-icon {
     width: 34px; height: 34px; border-radius: 10px; border: none;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.15s; background: #f7fafa; color: #7aa8ae;
   }
-  .btn-approve:hover { background: rgba(56,128,135,0.12); color: #388087; }
-  .btn-reject:hover { background: rgba(181,74,74,0.1); color: #b54a4a; }
   .btn-view:hover { background: rgba(23,37,42,0.08); color: #17252A; }
 
-  /* Empty State */
   .empty-state { text-align: center; padding: 60px 20px; }
   .empty-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(111,179,184,0.08); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: #6FB3B8; }
   .empty-txt { font-size: 15px; font-weight: 600; color: #17252A; margin-bottom: 4px; }
   .empty-sub { font-size: 13px; color: #7aa8ae; }
 
-  /* Modal Styles */
   .overlay {
     position: fixed; inset: 0; z-index: 200;
     background: rgba(23,37,42,0.38); backdrop-filter: blur(8px) saturate(0.9);
@@ -184,24 +173,7 @@ const css = `
   .modal-info-k { font-size: 12px; color: #7aa8ae; font-weight: 500; }
   .modal-info-v { font-size: 13px; font-weight: 600; color: #17252A; }
 
-  .remark-label { font-size: 13px; font-weight: 600; color: #17252A; margin-bottom: 8px; display: block; }
-  .remark-area {
-    width: 100%; height: 100px; padding: 12px 14px; border-radius: 12px;
-    border: 1.5px solid rgba(111,179,184,0.22); background: #fff;
-    font-family: 'Poppins', sans-serif; font-size: 13px; color: #17252A;
-    outline: none; transition: all 0.15s; resize: none;
-  }
-  .remark-area:focus { border-color: #b54a4a; box-shadow: 0 0 0 3px rgba(181,74,74,0.1); }
-  .remark-area.err { border-color: #b54a4a; background: rgba(181,74,74,0.02); }
-
   .modal-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
-  .btn-confirm {
-    padding: 12px; border-radius: 12px; border: none; font-family: 'Poppins', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff;
-  }
-  .btn-approve { background: linear-gradient(135deg, #17252A, #388087); box-shadow: 0 4px 12px rgba(23,37,42,0.2); }
-  .btn-reject { background: linear-gradient(135deg, #b54a4a, #c0504d); box-shadow: 0 4px 12px rgba(181,74,74,0.2); }
   .btn-cancel {
     padding: 12px; border-radius: 12px; background: transparent; color: #7aa8ae;
     border: 1.5px solid #e2eef0; font-family: 'Poppins', sans-serif;
@@ -209,15 +181,12 @@ const css = `
   }
   .btn-cancel:hover { border-color: #6FB3B8; color: #388087; }
 
-  /* Responsive */
   @media (max-width: 768px) {
     .req-wrap { padding: 16px; }
-    .req-header { flex-direction: column; align-items: stretch; }
-    .toolbar { width: 100%; }
-    .search-wrap { max-width: none; }
     .tabs-row { overflow-x: auto; flex-direction: column; align-items: stretch; gap: 16px; padding-bottom: 12px; }
     .tabs { padding-bottom: 4px; }
     .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .search-wrap { max-width: none; }
   }
   @media (max-width: 480px) {
     .summary-grid { grid-template-columns: 1fr; }
@@ -240,15 +209,11 @@ const INITIAL_REQUESTS = [
 ]
 
 export default function Requests() {
-  const [requests, setRequests] = useState(INITIAL_REQUESTS)
-  const [activeTab, setActiveTab] = useState('pending') // 'pending' or 'history'
+  const [requests] = useState(INITIAL_REQUESTS)
+  const [activeTab, setActiveTab] = useState('pending')
   const [search, setSearch] = useState('')
   const [selectedReq, setSelectedReq] = useState(null)
-  const [modalType, setModalType] = useState(null) // 'approve', 'reject', 'view'
-  const [rejectionRemark, setRejectionRemark] = useState('')
-  const [remarkErr, setRemarkErr] = useState(false)
 
-  // Calculations
   const stats = {
     total: requests.length,
     pending: requests.filter(r => r.status === 'Pending').length,
@@ -259,50 +224,24 @@ export default function Requests() {
   const filtered = requests.filter(r => {
     const isHistory = activeTab === 'history'
     const matchStatus = isHistory ? (r.status === 'Approved' || r.status === 'Rejected') : (r.status === 'Pending')
-    const matchSearch = r.employee.toLowerCase().includes(search.toLowerCase()) || 
-                      r.id.toLowerCase().includes(search.toLowerCase()) ||
-                      r.category.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = r.employee.toLowerCase().includes(search.toLowerCase()) ||
+                        r.id.toLowerCase().includes(search.toLowerCase()) ||
+                        r.category.toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
 
-  const openModal = (req, type) => {
-    setSelectedReq(req)
-    setModalType(type)
-    setRejectionRemark('')
-    setRemarkErr(false)
-  }
-
-  const closeModal = () => {
-    setSelectedReq(null)
-    setModalType(null)
-    setRejectionRemark('')
-    setRemarkErr(false)
-  }
-
-  const handleApprove = () => {
-    setRequests(prev => prev.map(r => r.id === selectedReq.id ? { ...r, status: 'Approved' } : r))
-    closeModal()
-  }
-
-  const handleReject = () => {
-    if (!rejectionRemark.trim()) {
-      setRemarkErr(true)
-      return
-    }
-    setRequests(prev => prev.map(r => r.id === selectedReq.id ? { ...r, status: 'Rejected', remark: rejectionRemark.trim() } : r))
-    closeModal()
-  }
+  const closeModal = () => setSelectedReq(null)
 
   return (
     <>
       <style>{css}</style>
       <div className="req-wrap">
-        
+
         {/* Header */}
         <div className="req-header">
           <div>
             <div className="req-title">Reimbursement <span>Requests</span></div>
-            <div className="req-sub">Manage and track employee reimbursement claims</div>
+            <div className="req-sub">View and track employee reimbursement claims</div>
           </div>
         </div>
 
@@ -338,18 +277,18 @@ export default function Requests() {
           </div>
         </div>
 
-        {/* Tabs and Controls */}
+        {/* Tabs and Search */}
         <div className="req-controls">
           <div className="tabs-row">
             <div className="tabs">
-              <button 
+              <button
                 className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
                 onClick={() => setActiveTab('pending')}
               >
                 Pending
                 <span className="tab-count">{stats.pending}</span>
               </button>
-              <button 
+              <button
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
@@ -358,17 +297,15 @@ export default function Requests() {
               </button>
             </div>
           </div>
-          
-          <div className="search-row">
-            <div className="search-wrap" style={{ maxWidth: '100%' }}>
-              <Search size={15} />
-              <input 
-                className="search-input" 
-                placeholder="Search by ID, name or category..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
+
+          <div className="search-wrap" style={{ maxWidth: '100%' }}>
+            <Search size={15} />
+            <input
+              className="search-input"
+              placeholder="Search by ID, name or category..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
         </div>
 
@@ -430,19 +367,9 @@ export default function Requests() {
                     )}
                     <td>
                       <div className="actions">
-                        <button className="btn-icon btn-view" title="View Details" onClick={() => openModal(req, 'view')}>
+                        <button className="btn-icon btn-view" title="View Details" onClick={() => setSelectedReq(req)}>
                           <Eye size={16} />
                         </button>
-                        {req.status === 'Pending' && (
-                          <>
-                            <button className="btn-icon btn-approve" title="Approve Request" onClick={() => openModal(req, 'approve')}>
-                              <Check size={16} />
-                            </button>
-                            <button className="btn-icon btn-reject" title="Reject Request" onClick={() => openModal(req, 'reject')}>
-                              <X size={16} />
-                            </button>
-                          </>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -452,8 +379,8 @@ export default function Requests() {
           </div>
         </div>
 
-        {/* Modals */}
-        {selectedReq && modalType === 'view' && (
+        {/* View Modal */}
+        {selectedReq && (
           <div className="overlay" onClick={e => e.target.classList.contains('overlay') && closeModal()}>
             <div className="modal">
               <div className="modal-header">
@@ -497,7 +424,7 @@ export default function Requests() {
                 </div>
                 {selectedReq.remark && (
                   <div>
-                    <span className="remark-label">Admin Remarks</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#17252A', marginBottom: '8px', display: 'block' }}>Admin Remarks</span>
                     <div style={{ padding: '12px', background: '#f8f9fa', borderRadius: '12px', fontSize: '13px', color: '#5a7b80', border: '1px solid rgba(111,179,184,0.1)' }}>
                       {selectedReq.remark}
                     </div>
@@ -505,91 +432,6 @@ export default function Requests() {
                 )}
                 <div className="modal-btns">
                   <button className="btn-cancel" onClick={closeModal}>Close Details</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedReq && modalType === 'approve' && (
-          <div className="overlay" onClick={e => e.target.classList.contains('overlay') && closeModal()}>
-            <div className="modal">
-              <div className="modal-header">
-                <div className="modal-title-group">
-                  <div className="modal-h-icon" style={{ background: 'rgba(56,128,135,0.1)', color: '#388087' }}>
-                    <CheckCircle size={20} />
-                  </div>
-                  <div>
-                    <div className="modal-htitle">Approve Request</div>
-                    <div className="modal-hsub">Confirming reimbursement for {selectedReq.employee}</div>
-                  </div>
-                </div>
-                <button className="btn-icon" onClick={closeModal}><X size={18} /></button>
-              </div>
-              <div className="modal-body">
-                <div className="modal-request-info">
-                   <div className="modal-info-row">
-                    <span className="modal-info-k">Amount</span>
-                    <span className="modal-info-v" style={{ fontSize: '18px', color: '#17252A' }}>{selectedReq.amount}</span>
-                  </div>
-                  <div className="modal-info-row">
-                    <span className="modal-info-k">Category</span>
-                    <span className="modal-info-v">{selectedReq.category}</span>
-                  </div>
-                </div>
-                <p style={{ fontSize: '13px', color: '#7aa8ae', textAlign: 'center', marginBottom: '8px' }}>
-                  Are you sure you want to approve this reimbursement claim? This action can be tracked in history.
-                </p>
-                <div className="modal-btns">
-                  <button className="btn-confirm btn-approve" onClick={handleApprove}>Yes, Approve Claim</button>
-                  <button className="btn-cancel" onClick={closeModal}>Go Back</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedReq && modalType === 'reject' && (
-          <div className="overlay" onClick={e => e.target.classList.contains('overlay') && closeModal()}>
-            <div className="modal">
-              <div className="modal-header">
-                <div className="modal-title-group">
-                  <div className="modal-h-icon" style={{ background: 'rgba(181,74,74,0.1)', color: '#b54a4a' }}>
-                    <AlertCircle size={20} />
-                  </div>
-                  <div>
-                    <div className="modal-htitle">Reject Request</div>
-                    <div className="modal-hsub">Please provide a reason for rejection</div>
-                  </div>
-                </div>
-                <button className="btn-icon" onClick={closeModal}><X size={18} /></button>
-              </div>
-              <div className="modal-body">
-                <div className="modal-request-info">
-                   <div className="modal-info-row">
-                    <span className="modal-info-k">Total Amount</span>
-                    <span className="modal-info-v">{selectedReq.amount}</span>
-                  </div>
-                  <div className="modal-info-row">
-                    <span className="modal-info-k">Employee</span>
-                    <span className="modal-info-v">{selectedReq.employee}</span>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="remark-label">Reason for Rejection <span style={{ color: '#b54a4a' }}>*</span></label>
-                  <textarea 
-                    className={`remark-area ${remarkErr ? 'err' : ''}`}
-                    placeholder="e.g. Invalid receipt, amount mismatch, etc."
-                    value={rejectionRemark}
-                    onChange={e => { setRejectionRemark(e.target.value); setRemarkErr(false); }}
-                  />
-                  {remarkErr && <span style={{ color: '#b54a4a', fontSize: '11px', marginTop: '4px', display: 'block' }}>A remark is mandatory for rejection.</span>}
-                </div>
-
-                <div className="modal-btns">
-                  <button className="btn-confirm btn-reject" onClick={handleReject}>Reject Request</button>
-                  <button className="btn-cancel" onClick={closeModal}>Cancel</button>
                 </div>
               </div>
             </div>

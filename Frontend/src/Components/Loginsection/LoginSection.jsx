@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, Briefcase, User, Eye, EyeOff } from "lucide-react";
+import { Shield, Briefcase, User, Eye, EyeOff, Building2, DollarSign } from "lucide-react";
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const C = {
@@ -53,12 +53,12 @@ const css = `
   /* ── Card ── */
   .card {
     position: relative; z-index: 2;
-    width: 100%; max-width: 860px;
+    width: 100%; max-width: 880px;
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(56,128,135,0.04), 0 12px 40px rgba(56,128,135,0.10), 0 0 0 1px rgba(111,179,184,0.16);
     display: flex;
-    min-height: 520px;
+    min-height: 540px;
   }
 
   /* ── Sidebar ── */
@@ -70,7 +70,7 @@ const css = `
   }
   .sb-logo {
     display: flex; align-items: center; gap: 10px;
-    margin-bottom: 34px;
+    margin-bottom: 28px;
   }
   .sb-mark {
     width: 34px; height: 34px;
@@ -87,16 +87,16 @@ const css = `
   .sb-label {
     font-size: 10.5px; font-weight: 600; letter-spacing: 1.3px;
     text-transform: uppercase; color: rgba(186,223,231,0.45);
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
   .rb {
     display: flex; align-items: center; gap: 11px;
-    width: 100%; padding: 10px 12px;
+    width: 100%; padding: 9px 12px;
     border-radius: 11px; border: 1px solid transparent;
     background: transparent; cursor: pointer;
     font-family: 'Poppins', sans-serif;
     color: rgba(254,255,255,0.58);
-    text-align: left; margin-bottom: 5px;
+    text-align: left; margin-bottom: 4px;
     transition: all 0.16s ease;
   }
   .rb:hover {
@@ -111,18 +111,33 @@ const css = `
     box-shadow: 0 3px 12px rgba(56,128,135,0.32);
   }
   .rb-icon {
-    width: 31px; height: 31px;
+    width: 30px; height: 30px;
     border-radius: 8px;
     background: rgba(111,179,184,0.14);
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; transition: background 0.16s;
   }
   .rb.on .rb-icon { background: rgba(255,255,255,0.14); }
-  .rb-icon svg { width: 15px; height: 15px; color: ${C.light}; }
+  .rb-icon svg { width: 14px; height: 14px; color: ${C.light}; }
+  .rb-text { display: flex; flex-direction: column; }
+  .rb-label { font-size: 13px; font-weight: 600; line-height: 1.2; }
+  .rb-desc  { font-size: 10px; opacity: 0.6; margin-top: 1px; line-height: 1.3; }
+  .rb.on .rb-desc { opacity: 0.75; }
+
+  .sb-divider {
+    height: 1px; background: rgba(111,179,184,0.1);
+    margin: 10px 0;
+  }
+  .sb-section-label {
+    font-size: 9.5px; font-weight: 600; letter-spacing: 1.2px;
+    text-transform: uppercase; color: rgba(186,223,231,0.3);
+    margin-bottom: 8px; margin-top: 2px; padding-left: 2px;
+  }
+
   .sb-foot {
-    margin-top: auto; padding-top: 22px;
+    margin-top: auto; padding-top: 18px;
     border-top: 1px solid rgba(111,179,184,0.1);
-    font-size: 11.5px; color: rgba(186,223,231,0.35); line-height: 1.6;
+    font-size: 11px; color: rgba(186,223,231,0.35); line-height: 1.6;
   }
 
   /* ── Form panel ── */
@@ -195,7 +210,6 @@ const css = `
   .cta:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(23,37,42,0.26); }
   .cta:active { transform: none; }
 
-  /* signup outline button */
   .cta-outline {
     width: 100%; padding: 11px; border-radius: 11px;
     border: 1.5px solid ${C.mid};
@@ -257,11 +271,12 @@ const css = `
   .alert.err  { background: #fff5f5; color: #b54a4a; border-color: #f5c6c6; }
   .alert.succ { background: #f0faf5; color: #2d7a5a; border-color: #b2dfcc; }
 
-  @media (max-width: 680px) {
+  @media (max-width: 720px) {
     .card { flex-direction: column; }
     .sb { width: 100%; padding: 24px 18px; }
     .sb-foot { display: none; }
     .fp { padding: 30px 22px; }
+    .rb-desc { display: none; }
   }
 `;
 
@@ -277,15 +292,17 @@ const IconOk = () => (
 
 // ─── Roles ───────────────────────────────────────────────────────────────────
 const ROLES = [
-  { id: "admin",    label: "Admin",    Icon: Shield,    desc: "Full system access & configuration" },
-  { id: "manager",  label: "Manager",  Icon: Briefcase, desc: "Team & operations oversight" },
-  { id: "employee", label: "Employee", Icon: User,      desc: "Standard workspace access" },
+  { id: "admin",    label: "Admin",    Icon: Shield,      desc: "Full system access & config",    section: "management" },
+  { id: "director", label: "Director", Icon: Building2,   desc: "Executive oversight & strategy", section: "management" },
+  { id: "cfo",      label: "CFO",      Icon: DollarSign,  desc: "Finance & budget control",       section: "management" },
+  { id: "manager",  label: "Manager",  Icon: Briefcase,   desc: "Team & operations oversight",    section: "team" },
+  { id: "employee", label: "Employee", Icon: User,        desc: "Standard workspace access",      section: "team" },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AuthPage() {
   const [role, setRole]       = useState("admin");
-  const [mode, setMode]       = useState("login");   // "login" | "forgot"
+  const [mode, setMode]       = useState("login");
   const [showPw, setShowPw]   = useState(false);
   const [form, setForm]       = useState({ email: "", password: "", name: "", confirm: "" });
   const [touched, setTouched] = useState({ email: false });
@@ -336,9 +353,11 @@ export default function AuthPage() {
       setAlert({ text: "Please enter a valid email address.", kind: "err" });
       return;
     }
-    // ── connect your API here ──
     setAlert({ text: "If an account exists, a reset link will be sent to your email.", kind: "succ" });
   };
+
+  const managementRoles = ROLES.filter(r => r.section === "management");
+  const teamRoles        = ROLES.filter(r => r.section === "team");
 
   return (
     <>
@@ -360,14 +379,34 @@ export default function AuthPage() {
 
             <p className="sb-label">Select Role</p>
 
-            {ROLES.map(({ id, label, Icon }) => (
+            <p className="sb-section-label">Leadership</p>
+            {managementRoles.map(({ id, label, Icon, desc }) => (
               <button
                 key={id}
                 className={`rb${role === id ? " on" : ""}`}
                 onClick={() => switchRole(id)}
               >
                 <span className="rb-icon"><Icon strokeWidth={2} /></span>
-                {label}
+                <span className="rb-text">
+                  <span className="rb-label">{label}</span>
+                  <span className="rb-desc">{desc}</span>
+                </span>
+              </button>
+            ))}
+
+            <div className="sb-divider" />
+            <p className="sb-section-label">Workspace</p>
+            {teamRoles.map(({ id, label, Icon, desc }) => (
+              <button
+                key={id}
+                className={`rb${role === id ? " on" : ""}`}
+                onClick={() => switchRole(id)}
+              >
+                <span className="rb-icon"><Icon strokeWidth={2} /></span>
+                <span className="rb-text">
+                  <span className="rb-label">{label}</span>
+                  <span className="rb-desc">{desc}</span>
+                </span>
               </button>
             ))}
 
@@ -429,7 +468,7 @@ export default function AuthPage() {
 
                 <div className="divider">or</div>
 
-                <button className="google-btn" type="button" onClick={() => { /* connect Google OAuth here */ }}>
+                <button className="google-btn" type="button">
                   <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -540,7 +579,7 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <button className="cta" onClick={(e) => { e.preventDefault(); /* connect your API here */ }}>
+                <button className="cta" onClick={(e) => { e.preventDefault(); }}>
                   Sign Up →
                 </button>
 
