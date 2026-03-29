@@ -10,6 +10,7 @@ export default function AdminLayout() {
     { label: 'Overview', icon: LayoutDashboard, path: 'overview' },
     { label: 'Manage Users', icon: FileText, path: 'manage', badge: 12 },
     { label: 'Settings', icon: Settings, path: 'settings' }
+    
   ]
 
   const LogoutModal = () => (
