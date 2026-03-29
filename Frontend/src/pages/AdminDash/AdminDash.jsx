@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+﻿import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, FileText, Settings, Menu, X, User, LogOut } from 'lucide-react'
 import { useState } from 'react'
 
@@ -214,7 +214,7 @@ function AdminDash() {
   const navItems = [
     { label: 'Overview', icon: LayoutDashboard, path: 'overview' },
     { label: 'Manage', icon: User,           path: 'manage' },
-    { label: 'Requests', icon: FileText,         path: 'requests', badge: 12 },
+    { label: 'Requests', icon: FileText,         path: 'requests'},
     { label: 'Settings', icon: Settings,          path: 'settings' },
   ]
 
