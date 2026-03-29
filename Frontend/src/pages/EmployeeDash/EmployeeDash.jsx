@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+﻿import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, History, FileText, Settings, Menu, X, User, LogOut } from 'lucide-react'
 import { useState } from 'react'
 
